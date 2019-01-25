@@ -58,8 +58,17 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V](
     ContextShift[F].evalOn(executionContext)(Sync[F].delay(f))
 
   private val executionContext =
-    scala.concurrent.ExecutionContext
-      .fromExecutor(java.util.concurrent.Executors.newSingleThreadExecutor)
+    scala.concurrent.ExecutionContext.fromExecutor(
+      java.util.concurrent.Executors.newSingleThreadExecutor(
+        new java.util.concurrent.ThreadFactory {
+          def newThread(runnable: Runnable) = {
+            val thread = new Thread(runnable)
+            thread.setName(s"kafka-consumer-thread")
+            thread.setDaemon(true)
+            thread
+          }
+        }
+      ))
 
   private implicit val logger: Logger[F] = slf4j.Slf4jLogger.unsafeCreate
 }
