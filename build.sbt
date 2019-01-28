@@ -8,6 +8,9 @@ val log4CatsVersion = "[0.2.0,0.3.0)"
 val pureConfigVersion = "[0.10.0,0.11.0)"
 val scalaTestVersion = "[3.0.5, 3.1.0)"
 
+def findJar(classPath: Seq[Attributed[File]], name: String): File =
+  classPath.find(_.data.toString.containsSlice(name)).get.data
+
 lazy val fable = (project in file("."))
   .settings(
     inThisBuild(List(scalaVersion := "2.12.8")),
@@ -21,6 +24,12 @@ lazy val fable = (project in file("."))
       "-Ywarn-unused-import"
     ),
     autoAPIMappings := true,
+    apiMappings ++= Map(
+      findJar((fullClasspath in Compile).value, "cats-effect") -> url(
+        "https://typelevel.org/cats-effect/api/cats/effect/"),
+      findJar((fullClasspath in Compile).value, "kafka-clients") -> url(
+        "https://kafka.apache.org/21/javadoc/")
+    ),
     developers := List(
       Developer(
         id = "jferris",

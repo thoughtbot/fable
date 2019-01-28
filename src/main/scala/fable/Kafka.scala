@@ -5,13 +5,62 @@ import cats.Monad
 import fs2.Sink
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
+/**
+  * Entry point for constructing Kafka consumers.
+  *
+  * @example {{{
+  * import cats.implicits._
+  * import cats.effect._
+  * import fable._
+  * import pureconfig.generic.auto._
+  *
+  * object Main extends IOApp {
+  *   def run(args: List[String]): IO[ExitCode] = {
+  *     val kafkaConfig: Kafka.Config =
+  *      pureconfig.loadConfigOrThrow[Config.Kafka]("kafka")
+  *     val consumerConfig: Kafka.Config =
+  *      pureconfig.loadConfigOrThrow[Config.Consumer]("kafka.my-consumer")
+  *      val kafka: Kafka = Kafka(kafkaConfig)
+  *      kafka.consumer[String, String](consumerConfig).use { consumer =>
+  *        for {
+  *          _ <- consumer.subscribe(kafka.topic("my-topic"))
+  *          records <- consumer.poll
+  *          _ <- IO.delay(println(s"Consumed \${records.count} records"))
+  *        } yield ExitCode.Success
+  *      }
+  *   }
+  * }
+  * }}}
+  *
+  * @see [[Consumer]] for the consumer API
+  * @see [[Config.Kafka]] for settings for Kafka connections
+  * @see [[Config.Consumer]] for settings for consumers
+  */
 class Kafka[F[_]: ContextShift: Monad: Sync](config: Config.Kafka) {
+
+  /**
+    * Construct a [[Topic]] from the given name. Applies the prefix from
+    * configuration if one is present.
+    */
   def topic(name: String): Topic =
-    config.prefix(name)(Topic)
+    config.prefix(name)(Topic.apply)
 
-  def group(name: String): Group =
-    config.prefix(name)(Group)
+  /**
+    * Construct a [[GroupId]] from the given name. Applies the prefix from
+    * configuration if one is present.
+    */
+  def groupId(name: String): GroupId =
+    config.prefix(name)(GroupId.apply)
 
+  /**
+    * Allocate a [[Consumer]] as a [[cats.effect.Resource]]. The consumer will
+    * be closed when the resource is released.
+    *
+    * @tparam K the type to deserialize keys into
+    * @tparam V the type to deserialize values into
+    * @see [[Consumer]] for details on using consumers
+    * @see [[Deserializer]] for details on deserializing keys and values
+    */
   def consumer[K: Deserializer, V: Deserializer](
       consumerConfig: Config.Consumer): Resource[F, Consumer[F, K, V]] =
     Resource.make(

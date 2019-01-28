@@ -9,7 +9,7 @@ class KafkaSpec extends AsyncFunSuite {
     implicit val contextShift = IO.contextShift(implicitly[ExecutionContext])
     val config = TestConfig.kafka.copy(prefix = Some("example."))
     val kafka = new Kafka[IO](config)
-    val group = kafka.group("test")
+    val group = kafka.groupId("test")
 
     assert(group.name === "example.test")
   }

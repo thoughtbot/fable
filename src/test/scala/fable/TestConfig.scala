@@ -1,7 +1,5 @@
 package fable
 
-import pureconfig.generic.auto._
-
 object TestConfig {
   def kafka: Config.Kafka = pureconfig.loadConfigOrThrow[Config.Kafka]("kafka")
 

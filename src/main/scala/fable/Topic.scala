@@ -1,3 +1,12 @@
 package fable
 
-case class Topic(name: String) extends AnyVal
+/**
+  * Value class for topic names.
+  *
+  * @see [[Kafka.topic]]
+  */
+case class Topic private (name: String) extends AnyVal
+
+private[fable] object Topic {
+  private[fable] def apply(name: String): Topic = new Topic(name)
+}
