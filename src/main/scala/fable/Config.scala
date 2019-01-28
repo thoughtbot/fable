@@ -48,11 +48,9 @@ object Config {
     * General configuration options for [[Kafka]] instances.
     *
     * @constructor
-    * @param prefix optional prefix to apply to topic names and consumer group
-    * IDs.
     * @param uris bootstrap URIs used to connect to a Kafka cluster.
     */
-  case class Kafka(prefix: Option[String], uris: URIList) {
+  case class Kafka(uris: URIList) {
     private[fable] def properties: Properties = {
       val result = new Properties()
       result.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
@@ -60,9 +58,6 @@ object Config {
       result.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, uris.scheme)
       result
     }
-
-    def prefix[A](name: String)(f: String => A): A =
-      f(s"${prefix.getOrElse("")}$name")
   }
 
   object Kafka {

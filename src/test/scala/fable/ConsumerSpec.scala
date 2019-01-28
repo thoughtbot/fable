@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext
 
 class ConsumerSpec extends AsyncFunSuite {
   test("poll") {
-    val topic = kafka.topic("fable-test-example")
+    val topic = Topic("fable-test-example")
     val consumer = kafka.consumer[String, String](consumerConfig)
 
     (for {
@@ -35,7 +35,7 @@ class ConsumerSpec extends AsyncFunSuite {
   }
 
   test("commit") {
-    val topic = kafka.topic("fable-test-example")
+    val topic = Topic("fable-test-example")
     val consumer = Eval.always {
       kafka.consumer[String, String](consumerConfig)
     }
@@ -66,7 +66,7 @@ class ConsumerSpec extends AsyncFunSuite {
   }
 
   test("records") {
-    val topic = kafka.topic("fable-test-example")
+    val topic = Topic("fable-test-example")
     val consumer =
       kafka.consumer[String, String](consumerConfig.copy(maxPollRecords = 2))
 
@@ -90,7 +90,7 @@ class ConsumerSpec extends AsyncFunSuite {
   }
 
   test("partitionsFor") {
-    val topic = kafka.topic("fable-test-example")
+    val topic = Topic("fable-test-example")
     val consumer = kafka.consumer[String, String](consumerConfig)
 
     (for {
@@ -102,8 +102,8 @@ class ConsumerSpec extends AsyncFunSuite {
   }
 
   test("assign") {
-    val first = kafka.topic("fable-test-one")
-    val second = kafka.topic("fable-test-two")
+    val first = Topic("fable-test-one")
+    val second = Topic("fable-test-two")
     val consumer = kafka.consumer[String, String](consumerConfig)
 
     (for {

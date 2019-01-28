@@ -39,20 +39,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 class Kafka[F[_]: ContextShift: Monad: Sync](config: Config.Kafka) {
 
   /**
-    * Construct a [[Topic]] from the given name. Applies the prefix from
-    * configuration if one is present.
-    */
-  def topic(name: String): Topic =
-    config.prefix(name)(Topic.apply)
-
-  /**
-    * Construct a [[GroupId]] from the given name. Applies the prefix from
-    * configuration if one is present.
-    */
-  def groupId(name: String): GroupId =
-    config.prefix(name)(GroupId.apply)
-
-  /**
     * Allocate a [[Consumer]] as a [[cats.effect.Resource]]. The consumer will
     * be closed when the resource is released.
     *
