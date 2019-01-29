@@ -5,8 +5,6 @@ import pureconfig.generic.semiauto.deriveReader
 
 /**
   * Value class for consumer group IDs.
-  *
-  * @see [[Kafka.groupId]]
   */
 case class GroupId private (name: String) extends AnyVal
 

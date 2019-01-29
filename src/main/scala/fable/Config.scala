@@ -1,10 +1,13 @@
 package fable
 
+import cats.effect.Sync
 import cats.implicits._
+import com.heroku.sdk.BasicKeyStore
 import java.net.URI
 import java.util.Properties
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.config.SslConfigs
 import pureconfig.ConfigReader
 import pureconfig.generic.semiauto.deriveReader
 import scala.concurrent.duration.FiniteDuration
@@ -54,7 +57,9 @@ object Config {
     *
     * @constructor
     * @param autoCommit whether to automatically commit the previous offset
+    * @param clientCertificate SSL certificate used to authenticate the client
     * @param clientId identifier for tracking which client is making requests
+    * @param clientKey SSL private key used to authenticate the client
     * @param groupId identifier for the consumer group this consumer will join
     * each time [[Consumer.poll]] is invoked.
     * @param maxPollRecords the maximum number of records to return each time
@@ -63,40 +68,103 @@ object Config {
     * [[Consumer.poll]] is invoked.
     * @param sessionTimeout how long to wait before assuming a failure has
     * occurred when using a consumer group
+    * @param sslIdentificationAlgorithm the algorithm used to identify the
+    * server hostname
+    * @param trustedCertificate SSL certificate used to authenticate the server
     * @param uris bootstrap URIs used to connect to a Kafka cluster.
     */
   case class Consumer(
       autoCommit: Boolean,
+      clientCertificate: Option[String],
       clientId: String,
+      clientKey: Option[String],
       groupId: Option[GroupId],
       maxPollRecords: Int,
       pollingTimeout: FiniteDuration,
       sessionTimeout: FiniteDuration,
+      sslIdentificationAlgorithm: Option[String],
+      trustedCertificate: Option[String],
       uris: URIList
   ) {
-    def properties[K: Deserializer, V: Deserializer]: Properties = {
+    def properties[F[_]: Sync, K: Deserializer, V: Deserializer]
+      : F[Properties] = {
       val result = new Properties()
-      result.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
+      addCommonProperties(result)
+      addConsumerProperties(result)
+      addDeserializationProperties[K, V](result)
+
+      addTrustStoreProperties[F](result) *>
+        addClientStoreProperties[F](result) *>
+        Sync[F].pure(result)
+    }
+
+    private def addCommonProperties(target: Properties): Unit = {
+      target.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
                  uris.bootstrapServers)
-      result.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, uris.scheme)
-      result.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-      result.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId)
-      result.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
-      result.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                 Deserializer[K].instance.getClass.getName)
-      result.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
+      target.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, uris.scheme)
+      target.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
+                 sslIdentificationAlgorithm.getOrElse(""))
+    }
+
+    private def addConsumerProperties[F[_]: Sync](target: Properties): Unit = {
+      target.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+      target.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId)
+      target.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
+      target.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
                  new Integer(maxPollRecords))
-      result.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
+      target.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
                  sessionTimeout.toMillis.toString)
-      result.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                 Deserializer[V].instance.getClass.getName)
       groupId
         .map(_.name)
         .foreach(
-          result.put(ConsumerConfig.GROUP_ID_CONFIG, _)
+          target.put(ConsumerConfig.GROUP_ID_CONFIG, _)
         )
-      result
     }
+
+    private def addDeserializationProperties[K: Deserializer, V: Deserializer](
+        target: Properties) = {
+      target.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                 Deserializer[K].instance.getClass.getName)
+      target.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                 Deserializer[V].instance.getClass.getName)
+    }
+
+    private def addTrustStoreProperties[F[_]: Sync](
+        target: Properties): F[Unit] =
+      trustedCertificate.traverse { certificate =>
+        for {
+          password <- Sync[F].delay(
+            new java.math.BigInteger(130, new java.security.SecureRandom)
+              .toString(32))
+          memoryStore = new BasicKeyStore(certificate, password)
+          fileStore <- Sync[F].delay { memoryStore.storeTemp }
+        } yield {
+          target.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, memoryStore.`type`)
+          target.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
+                     fileStore.getAbsolutePath)
+          target.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,
+                     memoryStore.password)
+        }
+      }.void
+
+    private def addClientStoreProperties[F[_]: Sync](
+        target: Properties): F[Unit] =
+      (clientCertificate, clientKey).tupled.traverse {
+        case (certificate, key) =>
+          for {
+            password <- Sync[F].delay(
+              new java.math.BigInteger(130, new java.security.SecureRandom)
+                .toString(32))
+            memoryStore = new BasicKeyStore(key, certificate, password)
+            fileStore <- Sync[F].delay { memoryStore.storeTemp }
+          } yield {
+            target.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, memoryStore.`type`)
+            target.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG,
+                       fileStore.getAbsolutePath)
+            target.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG,
+                       memoryStore.password)
+          }
+      }.void
   }
 
   object Consumer {
@@ -113,12 +181,12 @@ object Config {
     private final val KAFKA_SSL_SCHEME: String = "kafka+ssl"
 
     def scheme: String =
-      if (needKeys)
+      if (usesSSL)
         "SSL"
       else
         "PLAINTEXT"
 
-    def needKeys: Boolean =
+    private def usesSSL: Boolean =
       uris.headOption.map(_.getScheme).getOrElse("") == KAFKA_SSL_SCHEME
 
     def bootstrapServers: String =

@@ -2,8 +2,6 @@ package fable
 
 /**
   * Value class for topic names.
-  *
-  * @see [[Kafka.topic]]
   */
 case class Topic private (name: String) extends AnyVal
 

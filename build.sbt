@@ -2,6 +2,7 @@ import ReleaseTransformations._
 
 val catsEffectVersion = "[1.0.0,1.1.0)"
 val catsVersion = "[1.4.0,1.5.0)"
+val envKeyStoreVersion = "[1.1.0,1.2.0)"
 val fs2Version = "[1.0.0,1.1.0)"
 val kafkaVersion = "[2.1.0,2.2.0)"
 val log4CatsVersion = "[0.2.0,0.3.0)"
@@ -74,6 +75,7 @@ lazy val fable = (project in file("."))
     libraryDependencies ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
+      "com.heroku.sdk" % "env-keystore" % envKeyStoreVersion,
       "io.chrisdavenport" %% "log4cats-slf4j" % log4CatsVersion,
       "org.apache.kafka" % "kafka-clients" % kafkaVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,

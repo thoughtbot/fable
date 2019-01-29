@@ -84,7 +84,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
   /**
     * Disconnect the network client.
     *
-    * If a consumer is acquired by using [[Kafka#consumer]], the consumer is
+    * If a consumer is acquired by using [[Consumer$.resource]], the consumer is
     * closed automatically once the resource is released.
     *
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#close-- KafkaConsumer.close]]
@@ -152,13 +152,24 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
 }
 
 object Consumer {
+
+  /**
+    * Construct a consumer using the given key type, value type, and
+    * configuration as a [[cats.effect.Resource]] which will be closed when the
+    * resource is released.
+    *
+    * @tparam K keys will be deserialized as this type
+    * @tparam V values will be deserialized as this type
+    * @see [[Deserializer]] for information on deserializing keys and values
+    */
   def resource[F[_]: ContextShift: Monad: Sync,
                K: Deserializer,
                V: Deserializer](
       config: Config.Consumer): Resource[F, Consumer[F, K, V]] =
     Resource.make(
-      Monad[F].pure(
-        new Consumer[F, K, V](
-          config,
-          new KafkaConsumer[K, V](config.properties[K, V]))))(_.close)
+      config
+        .properties[F, K, V]
+        .map(properties =>
+          new Consumer[F, K, V](config, new KafkaConsumer[K, V](properties))))(
+      _.close)
 }
