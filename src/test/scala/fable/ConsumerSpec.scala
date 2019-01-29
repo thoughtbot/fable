@@ -13,9 +13,11 @@ import org.scalatest.AsyncFunSuite
 import scala.concurrent.ExecutionContext
 
 class ConsumerSpec extends AsyncFunSuite {
+  implicit val contextShift = IO.contextShift(implicitly[ExecutionContext])
+
   test("poll") {
     val topic = Topic("fable-test-example")
-    val consumer = kafka.consumer[String, String](consumerConfig)
+    val consumer = Consumer.resource[IO, String, String](consumerConfig)
 
     (for {
       _ <- createTopic(topic.name)
@@ -37,7 +39,7 @@ class ConsumerSpec extends AsyncFunSuite {
   test("commit") {
     val topic = Topic("fable-test-example")
     val consumer = Eval.always {
-      kafka.consumer[String, String](consumerConfig)
+      Consumer.resource[IO, String, String](consumerConfig)
     }
 
     (for {
@@ -68,7 +70,7 @@ class ConsumerSpec extends AsyncFunSuite {
   test("records") {
     val topic = Topic("fable-test-example")
     val consumer =
-      kafka.consumer[String, String](consumerConfig.copy(maxPollRecords = 2))
+      Consumer.resource[IO, String, String](consumerConfig.copy(maxPollRecords = 2))
 
     (for {
       _ <- createTopic(topic.name)
@@ -91,7 +93,7 @@ class ConsumerSpec extends AsyncFunSuite {
 
   test("partitionsFor") {
     val topic = Topic("fable-test-example")
-    val consumer = kafka.consumer[String, String](consumerConfig)
+    val consumer = Consumer.resource[IO, String, String](consumerConfig)
 
     (for {
       _ <- createTopic(topic.name)
@@ -104,7 +106,7 @@ class ConsumerSpec extends AsyncFunSuite {
   test("assign") {
     val first = Topic("fable-test-one")
     val second = Topic("fable-test-two")
-    val consumer = kafka.consumer[String, String](consumerConfig)
+    val consumer = Consumer.resource[IO, String, String](consumerConfig)
 
     (for {
       _ <- createTopic(first.name)
@@ -125,7 +127,7 @@ class ConsumerSpec extends AsyncFunSuite {
 
   private def createTopic(topic: String): IO[Unit] =
     IO.delay {
-      val properties = kafkaConfig.properties
+      val properties = consumerConfig.properties
       val adminClient = AdminClient.create(properties)
       val newTopic = new NewTopic(topic, 1, 1)
 
@@ -137,7 +139,7 @@ class ConsumerSpec extends AsyncFunSuite {
 
   private def sendRecords(topic: String, records: (String, String)*): IO[Unit] =
     IO.delay {
-      val properties = kafkaConfig.properties
+      val properties = consumerConfig.properties
       properties.put(ProducerConfig.ACKS_CONFIG, "all")
       properties.put(ProducerConfig.CLIENT_ID_CONFIG, "fable-test")
       properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG,
@@ -162,8 +164,5 @@ class ConsumerSpec extends AsyncFunSuite {
       producer.close
     }
 
-  implicit val contextShift = IO.contextShift(implicitly[ExecutionContext])
-  val kafkaConfig = TestConfig.kafka
-  val kafka = Kafka[IO](kafkaConfig)
   val consumerConfig = TestConfig.consumer
 }

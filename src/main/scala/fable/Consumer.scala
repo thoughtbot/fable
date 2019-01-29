@@ -1,6 +1,6 @@
 package fable
 
-import cats.effect.{ContextShift, Sync}
+import cats.effect.{ContextShift, Resource, Sync}
 import cats.implicits._
 import cats.Monad
 import fs2.Stream
@@ -18,7 +18,27 @@ import scala.collection.JavaConverters._
   * [[scala.concurrent.ExecutionContext]] with a dedicated, single-thread pool.
   * Methods invoked on this class will perform their IO on that thread.
   *
-  * @see [[Kafka]] for allocating consumers
+  * @example {{{
+  * import cats.implicits._
+  * import cats.effect._
+  * import fable._
+  * import pureconfig.generic.auto._
+  *
+  * object Main extends IOApp {
+  *   def run(args: List[String]): IO[ExitCode] = {
+  *     val config: Config.Consumer =
+  *       pureconfig.loadConfigOrThrow[Config.Consumer]("kafka.my-consumer")
+  *     Consumer.resource[IO, String, String](consumerConfig).use { consumer =>
+  *       for {
+  *         _ <- consumer.subscribe(kafka.topic("my-topic"))
+  *         records <- consumer.poll
+  *         _ <- IO.delay(println(s"Consumed \${records.count} records"))
+  *       } yield ExitCode.Success
+  *     }
+  *   }
+  * }
+  * }}}
+  *
   * @see [[Config.Consumer]] for configuration options for consumers
   * @see [[Deserializer]] for details on deserializing keys and values
   * @see [[org.apache.kafka.clients.consumer.KafkaConsumer KafkaConsumer]] for
@@ -129,4 +149,16 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
       ))
 
   private implicit val logger: Logger[F] = slf4j.Slf4jLogger.unsafeCreate
+}
+
+object Consumer {
+  def resource[F[_]: ContextShift: Monad: Sync,
+               K: Deserializer,
+               V: Deserializer](
+      config: Config.Consumer): Resource[F, Consumer[F, K, V]] =
+    Resource.make(
+      Monad[F].pure(
+        new Consumer[F, K, V](
+          config,
+          new KafkaConsumer[K, V](config.properties[K, V]))))(_.close)
 }

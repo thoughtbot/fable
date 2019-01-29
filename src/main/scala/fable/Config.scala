@@ -23,7 +23,7 @@ import scala.util.Try
   *   kafka {
   *     uris = "PLAINTEXT://localhost:9092"
   *     uris = \${?KAFKA_URL}
-  *   
+  *
   *     test-consumer {
   *       auto-commit = false
   *       batch-size = 1024
@@ -41,28 +41,9 @@ import scala.util.Try
   *
   *   val consumerConfig: Kafka.Config =
   *     pureconfig.loadConfigOrThrow[Config.Consumer]("kafka.test-consumer")
-  * }}} 
+  * }}}
   */
 object Config {
-  /**
-    * General configuration options for [[Kafka]] instances.
-    *
-    * @constructor
-    * @param uris bootstrap URIs used to connect to a Kafka cluster.
-    */
-  case class Kafka(uris: URIList) {
-    private[fable] def properties: Properties = {
-      val result = new Properties()
-      result.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
-                 uris.bootstrapServers)
-      result.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, uris.scheme)
-      result
-    }
-  }
-
-  object Kafka {
-    implicit val kafkaConfigReader: ConfigReader[Kafka] = deriveReader
-  }
 
   /**
     * Configuration options for constructor a Kafka [[Consumer]].
@@ -82,6 +63,7 @@ object Config {
     * [[Consumer.poll]] is invoked.
     * @param sessionTimeout how long to wait before assuming a failure has
     * occurred when using a consumer group
+    * @param uris bootstrap URIs used to connect to a Kafka cluster.
     */
   case class Consumer(
       autoCommit: Boolean,
@@ -89,11 +71,14 @@ object Config {
       groupId: Option[GroupId],
       maxPollRecords: Int,
       pollingTimeout: FiniteDuration,
-      sessionTimeout: FiniteDuration
+      sessionTimeout: FiniteDuration,
+      uris: URIList
   ) {
-    def properties[K: Deserializer, V: Deserializer](
-        kafka: Kafka): Properties = {
-      val result = kafka.properties
+    def properties[K: Deserializer, V: Deserializer]: Properties = {
+      val result = new Properties()
+      result.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG,
+                 uris.bootstrapServers)
+      result.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, uris.scheme)
       result.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       result.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId)
       result.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
