@@ -10,6 +10,25 @@ In `build.sbt`:
 
 ## Synopsis
 
+    import cats.implicits._
+    import cats.effect._
+    import fable._
+    import pureconfig.generic.auto._
+
+    object Main extends IOApp {
+      def run(args: List[String]): IO[ExitCode] = {
+        val config: Config.Consumer =
+          pureconfig.loadConfigOrThrow[Config.Consumer]("kafka.my-consumer")
+        Consumer.resource[IO, String, String](consumerConfig).use { consumer =>
+          for {
+            _ <- consumer.subscribe(kafka.topic("my-topic"))
+            records <- consumer.poll
+            _ <- IO.delay(println(s"Consumed \${records.count} records"))
+          } yield ExitCode.Success
+        }
+      }
+    }
+
 See the [Scaladoc] for more details.
 
 ## Contributing
