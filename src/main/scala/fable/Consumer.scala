@@ -106,6 +106,15 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
         .void
 
   /**
+    * Fetch the current offset for this consumer for the given topic and
+    * partition.
+    *
+    * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#position-org.apache.kafka.common.TopicPartition- KafkaConsumer.position]]
+    */
+  def position(partition: Partition): F[Long] =
+    eval(_.position(new TopicPartition(partition.topic.name, partition.number)))
+
+  /**
     * Fetch information about partitions for a specific topic.
     *
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#partitionsFor-java.lang.String- KafkaConsumer.partitionsFor]]
