@@ -132,6 +132,21 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
           .asJava))
 
   /**
+    * Query Kafka for partitions currently assigned to this consumer.
+    *
+    * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#assignment-- KafkaConsumer.assignment]]
+    */
+  def assignment: F[Seq[Partition]] =
+    for {
+      assignments <- eval(_.assignment)
+    } yield {
+      assignments.asScala
+        .map(assignment =>
+          Partition(Topic(assignment.topic), assignment.partition))
+        .toList
+    }
+
+  /**
     * Perform an operation using the underlying KafkaConsumer and return the
     * result suspended in F.
     *
