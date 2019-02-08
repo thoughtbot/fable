@@ -64,9 +64,8 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     */
   def poll: F[ConsumerRecords[K, V]] =
     for {
-      records <- execute(
-        kafkaConsumer.poll(
-          java.time.Duration.ofMillis(config.pollingTimeout.toMillis)))
+      records <- eval(
+        _.poll(java.time.Duration.ofMillis(config.pollingTimeout.toMillis)))
       _ <- logger.info(s"Fetched ${records.count} records")
     } yield {
       ConsumerRecords(records)
@@ -78,7 +77,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#commitSync-- KafkaConsumer.commitSync]]
     */
   def commit: F[Unit] =
-    execute(kafkaConsumer.commitSync) *>
+    eval(_.commitSync) *>
       logger.info(s"Committed offset")
 
   /**
@@ -90,7 +89,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#close-- KafkaConsumer.close]]
     */
   def close: F[Unit] =
-    execute(kafkaConsumer.close) *>
+    eval(_.close) *>
       logger.info("Disconnected")
 
   /**
@@ -101,7 +100,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#subscribe-java.util.Collection- KafkaConsumer.subscribe]]
     */
   def subscribe(topics: Topic*): F[Unit] =
-    execute(kafkaConsumer.subscribe(topics.map(_.name).asJava)) *>
+    eval(_.subscribe(topics.map(_.name).asJava)) *>
       topics.toList
         .traverse(topic => logger.info(s"Subscribed to ${topic.name}"))
         .void
@@ -113,7 +112,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     */
   def partitionsFor(topic: Topic): F[Seq[Partition]] =
     for {
-      infos <- execute(kafkaConsumer.partitionsFor(topic.name))
+      infos <- eval(_.partitionsFor(topic.name))
     } yield {
       infos.asScala.map(info => Partition(Topic(info.topic), info.partition))
     }
@@ -125,15 +124,26 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#assign-java.util.Collection- KafkaConsumer.assign]]
     */
   def assign(partitions: Seq[Partition]): F[Unit] =
-    execute(
-      kafkaConsumer.assign(
+    eval(
+      _.assign(
         partitions
           .map(partition =>
             new TopicPartition(partition.topic.name, partition.number))
           .asJava))
 
-  private def execute[A](f: => A): F[A] =
-    ContextShift[F].evalOn(executionContext)(Sync[F].delay(f))
+  /**
+    * Perform an operation using the underlying KafkaConsumer and return the
+    * result suspended in F.
+    *
+    * This method should be used with care and is provided to allow access to
+    * features in kafka-clients which aren't supported by Fable.
+    *
+    * The operation will be scheduled on the KafkaConsumer thread.
+    *
+    * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html]] for available methods
+    */
+  def eval[A](f: KafkaConsumer[K, V] => A): F[A] =
+    ContextShift[F].evalOn(executionContext)(Sync[F].delay(f(kafkaConsumer)))
 
   private val executionContext =
     scala.concurrent.ExecutionContext.fromExecutor(
