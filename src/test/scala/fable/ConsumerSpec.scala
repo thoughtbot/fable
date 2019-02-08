@@ -165,6 +165,25 @@ class ConsumerSpec extends AsyncFunSuite {
     }).unsafeToFuture
   }
 
+  test("endOffsets") {
+    val topic = Topic("fable-test")
+    val consumer = Consumer.resource[IO, String, String](config)
+
+    (for {
+      _ <- createTopic(topic.name)
+      offsets <- consumer.use { instance =>
+        for {
+          _ <- instance.subscribe(topic)
+          _ <- instance.poll
+          partitions <- instance.assignment
+          result <- instance.endOffsets(partitions)
+        } yield result
+      }
+    } yield {
+      assert(offsets.keys.toList === List(Partition(topic, 0)))
+    }).unsafeToFuture
+  }
+
   private def createTopic(topic: String): IO[Unit] =
     IO.delay {
       val properties = new Properties

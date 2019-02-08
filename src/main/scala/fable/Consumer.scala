@@ -156,6 +156,26 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     }
 
   /**
+    * Query Kafka for the end offsets for the given partitions.
+    *
+    * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#endOffsets-java.util.Collection- KafkaConsumer.endOffsets]]
+    */
+  def endOffsets(partitions: Seq[Partition]): F[Map[Partition, Long]] =
+    for {
+      offsets <- eval(
+        _.endOffsets(
+          partitions
+            .map(partition =>
+              new TopicPartition(partition.topic.name, partition.number))
+            .asJava))
+    } yield {
+      offsets.asScala.map {
+        case (partition, offset) =>
+          (Partition(Topic(partition.topic), partition.partition), offset: Long)
+      }.toMap
+    }
+
+  /**
     * Perform an operation using the underlying KafkaConsumer and return the
     * result suspended in F.
     *
