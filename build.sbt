@@ -1,13 +1,13 @@
 import ReleaseTransformations._
 
-val catsEffectVersion = "[1.0.0,1.1.0)"
-val catsVersion = "[1.4.0,1.5.0)"
-val envKeyStoreVersion = "[1.1.0,1.2.0)"
-val fs2Version = "[1.0.0,1.1.0)"
-val kafkaVersion = "[2.1.0,2.2.0)"
-val log4CatsVersion = "[0.2.0,0.3.0)"
-val pureConfigVersion = "[0.10.0,0.11.0)"
-val scalaTestVersion = "[3.0.5, 3.1.0)"
+val catsEffectVersion = "1.0.+"
+val catsVersion = "1.4.+"
+val envKeyStoreVersion = "1.1.+"
+val fs2Version = "1.0.+"
+val kafkaVersion = "2.1.+"
+val log4CatsVersion = "0.2.+"
+val pureConfigVersion = "0.10.+"
+val scalaTestVersion = "3.0.+"
 
 def findJar(classPath: Seq[Attributed[File]], name: String): File =
   classPath.find(_.data.toString.containsSlice(name)).get.data
