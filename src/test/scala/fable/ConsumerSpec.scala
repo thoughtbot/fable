@@ -194,7 +194,7 @@ class ConsumerSpec extends AsyncFunSuite {
         for {
           _ <- instance.subscribe(fableTopic)
           _ <- instance.poll
-          topics <- instance.listTopics()
+          topics <- instance.listTopics
           partitions <- instance.partitionsFor(fableTopic)
         } yield (topics, partitions)
       }

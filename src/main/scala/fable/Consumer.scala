@@ -176,12 +176,12 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     }
 
   /**
-    * Get metadata about partitions for all topics that the user is authorized to view. This method will issue a remote call to the server.
-Specified by:
+    * Get metadata about partitions for all topics that the user is authorized
+    * to view. This method will issue a remote call to the server.
     *
     * @see [https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#listTopics--]
     */
-  def listTopics(): F[Map[Topic, List[Partition]]] =
+  def listTopics: F[Map[Topic, List[Partition]]] =
     for {
       topics <- eval(_.listTopics())
     } yield {
