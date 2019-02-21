@@ -181,14 +181,14 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     *
     * @see [https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#listTopics--]
     */
-  def listTopics: F[Map[Topic, List[Partition]]] =
+  def listTopics: F[Map[Topic, Seq[Partition]]] =
     for {
       topics <- eval(_.listTopics())
     } yield {
       topics.asScala.map {
         case ((topic, partitionInfos)) =>
-          val partitions: List[Partition] =
-            partitionInfos.asScala.toList.map(partitionInfo =>
+          val partitions: Seq[Partition] =
+            partitionInfos.asScala.toSeq.map(partitionInfo =>
               Partition(Topic(topic), partitionInfo.partition))
           (Topic(topic), partitions)
       }.toMap
