@@ -6,6 +6,7 @@ import cats.Monad
 import fs2.Stream
 import io.chrisdavenport.log4cats.{slf4j, Logger}
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.consumer.{Consumer => ConsumerInterface}
 import org.apache.kafka.common.TopicPartition
 import scala.collection.JavaConverters._
 
@@ -46,7 +47,7 @@ import scala.collection.JavaConverters._
   */
 class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     config: Config.Consumer,
-    kafkaConsumer: KafkaConsumer[K, V]) {
+    kafkaConsumer: ConsumerInterface[K, V]) {
 
   /**
     * Continuously [[poll]] Kafka for new records.
@@ -186,7 +187,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     *
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html]] for available methods
     */
-  def eval[A](f: KafkaConsumer[K, V] => A): F[A] =
+  def eval[A](f: ConsumerInterface[K, V] => A): F[A] =
     ContextShift[F].evalOn(executionContext)(Sync[F].delay(f(kafkaConsumer)))
 
   private val executionContext =

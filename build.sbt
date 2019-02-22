@@ -31,6 +31,8 @@ lazy val fable = (project in file("."))
       findJar((fullClasspath in Compile).value, "kafka-clients") -> url(
         "https://kafka.apache.org/21/javadoc/")
     ),
+    maxErrors := 5,
+    triggeredMessage := Watched.clearWhenTriggered,
     developers := List(
       Developer(
         id = "jferris",

@@ -10,30 +10,32 @@ import org.apache.kafka.clients.producer.{
   ProducerConfig,
   ProducerRecord
 }
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
 import org.scalatest.AsyncFunSuite
+import org.apache.kafka.clients.consumer.{MockConsumer, OffsetResetStrategy}
 import scala.concurrent.ExecutionContext
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 
 class ConsumerSpec extends AsyncFunSuite {
   implicit val contextShift = IO.contextShift(implicitly[ExecutionContext])
 
   test("poll") {
-    val topic = Topic("fable-test-example")
-    val consumer = Consumer.resource[IO, String, String](config)
+    val (mockConsumer, topic, topicPartition, offset) = createMockKafkaObjects
+    val record = createRecordMock(mockConsumer,
+                                  topic,
+                                  topicPartition,
+                                  offset,
+                                  ("one" -> "1"))
+    val consumer = new Consumer[IO, String, String](config, mockConsumer)
 
     (for {
-      _ <- createTopic(topic.name)
-      _ <- sendRecords(topic.name, "one" -> "1", "two" -> "2")
-      records <- consumer.use { instance =>
-        for {
-          _ <- instance.subscribe(topic)
-          records <- instance.poll
-        } yield records.toSeq
-      }
+      _ <- consumer.subscribe(topic)
+      records <- consumer.poll
     } yield {
-      assert(
-        records.map(record => (record.key, record.value)) === Seq("one" -> "1",
-                                                                  "two" -> "2"))
+      assert(records.toSeq.head.key === "one")
+      assert(records.toSeq.head.value === "1")
     }).unsafeToFuture
   }
 
@@ -230,6 +232,46 @@ class ConsumerSpec extends AsyncFunSuite {
 
       producer.close
     }
+
+  private def createMockKafkaObjects = {
+    val topic = Topic("fable-test-example")
+    val offset = 1.toLong
+    val partitions: ArrayBuffer[TopicPartition] = ArrayBuffer[TopicPartition]()
+    val topicPartition: TopicPartition = new TopicPartition(topic.name, 1)
+    partitions += topicPartition
+    val partitionMap =
+      Map(topicPartition -> offset.asInstanceOf[java.lang.Long]).asJava
+
+    val mockConsumer =
+      new MockConsumer[String, String](OffsetResetStrategy.EARLIEST)
+
+    mockConsumer.subscribe(Seq(topic.name).asJava)
+    mockConsumer.rebalance(partitions.asJava)
+    mockConsumer.updateBeginningOffsets(partitionMap)
+    mockConsumer.updateEndOffsets(partitionMap)
+
+    (mockConsumer, topic, topicPartition, offset)
+  }
+
+  private def createRecordMock(mockConsumer: MockConsumer[String, String],
+                               topic: Topic,
+                               topicPartition: TopicPartition,
+                               offset: Long,
+                               records: (String, String)*) = {
+    for {
+      record <- records
+    } yield {
+      mockConsumer.addRecord(
+        new ConsumerRecord(
+          topic.name,
+          topicPartition.partition,
+          offset,
+          record._1,
+          record._2
+        )
+      )
+    }
+  }
 
   val config = TestConfig.consumer
 }
