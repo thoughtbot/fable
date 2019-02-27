@@ -5,7 +5,7 @@ agree to abide by the thoughtbot [code of conduct].
 
 [code of conduct]: https://thoughtbot.com/open-source-code-of-conduct
 
-Here are some ways *you* can contribute:
+Here are some ways _you_ can contribute:
 
 * by using alpha, beta, and prerelease versions
 * by reporting bugs
@@ -17,9 +17,18 @@ Here are some ways *you* can contribute:
 * by closing [issues][]
 * by reviewing patches
 
+## Development
+
+* In order to run the library, you will need to install Kafka
+  * On Macs you can install it using brew: `brew install kafka`
+  * `brew services start kafka`
+  * Zookeeper is a Kafka manager that installs with Kafka. Run it with `brew services start zookeeper`
+* In order to run tests, run `sbt test`. Sbt is the Scala Build Tool. On Macs you can install it via `brew install sbt`
+
 [issues]: https://github.com/thoughtbot/fable/issues
 
 ## Submitting an Issue
+
 We use the [GitHub issue tracker][issues] to track bugs and features. Before
 submitting a bug report or feature request, check to make sure it hasn't
 already been submitted. When submitting a bug report, please include a [Gist][]
@@ -30,6 +39,7 @@ Ideally, a bug report should include a pull request with failing specs.
 [gist]: https://gist.github.com/
 
 ## Submitting a Pull Request
+
 1. [Fork][fork] the [official repository][repo].
 2. [Create a topic branch.][branch]
 3. Implement your feature or bug fix.
@@ -37,6 +47,7 @@ Ideally, a bug report should include a pull request with failing specs.
 5. [Submit a pull request.][pr]
 
 ## Notes
+
 * Please add tests if you changed code. Contributions without tests won't be accepted.
 * Please don't update the version.
 
