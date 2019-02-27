@@ -22,7 +22,10 @@ class ConsumerSpec extends AsyncFunSuite {
   implicit val contextShift = IO.contextShift(implicitly[ExecutionContext])
 
   test("poll") {
-    val (mockConsumer, topic, topicPartition, offset) = createMockKafkaObjects
+    val topic = Topic("fable-test-example")
+    val offset = 1.toLong
+    val topicPartition: TopicPartition = new TopicPartition(topic.name, 1)
+    val mockConsumer = createMockKafkaObjects(topic, offset, topicPartition)
     val record = createRecordMock(mockConsumer,
                                   topic,
                                   topicPartition,
@@ -31,7 +34,6 @@ class ConsumerSpec extends AsyncFunSuite {
     val consumer = new Consumer[IO, String, String](config, mockConsumer)
 
     (for {
-      _ <- consumer.subscribe(topic)
       records <- consumer.poll
     } yield {
       assert(records.toSeq.head.key === "one")
@@ -233,24 +235,18 @@ class ConsumerSpec extends AsyncFunSuite {
       producer.close
     }
 
-  private def createMockKafkaObjects = {
-    val topic = Topic("fable-test-example")
-    val offset = 1.toLong
-    val partitions: ArrayBuffer[TopicPartition] = ArrayBuffer[TopicPartition]()
-    val topicPartition: TopicPartition = new TopicPartition(topic.name, 1)
-    partitions += topicPartition
+  private def createMockKafkaObjects(topic: Topic, offset: Long, topicPartition: TopicPartition) = {
+    val mockConsumer =
+      new MockConsumer[String, String](OffsetResetStrategy.EARLIEST)
     val partitionMap =
       Map(topicPartition -> offset.asInstanceOf[java.lang.Long]).asJava
 
-    val mockConsumer =
-      new MockConsumer[String, String](OffsetResetStrategy.EARLIEST)
-
     mockConsumer.subscribe(Seq(topic.name).asJava)
-    mockConsumer.rebalance(partitions.asJava)
+    mockConsumer.rebalance(ArrayBuffer(topicPartition).asJava)
     mockConsumer.updateBeginningOffsets(partitionMap)
     mockConsumer.updateEndOffsets(partitionMap)
 
-    (mockConsumer, topic, topicPartition, offset)
+    mockConsumer
   }
 
   private def createRecordMock(mockConsumer: MockConsumer[String, String],
