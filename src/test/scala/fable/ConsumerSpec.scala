@@ -25,7 +25,7 @@ class ConsumerSpec extends AsyncFunSuite {
     val topic = Topic("fable-test-example")
     val offset = 1.toLong
     val topicPartition: TopicPartition = new TopicPartition(topic.name, 1)
-    val mockConsumer = createMockKafkaObjects(topic, offset, topicPartition)
+    val mockConsumer = createMockConsumer(offset, topicPartition)
     val record = createRecordMock(mockConsumer,
                                   topic,
                                   topicPartition,
@@ -235,13 +235,13 @@ class ConsumerSpec extends AsyncFunSuite {
       producer.close
     }
 
-  private def createMockKafkaObjects(topic: Topic, offset: Long, topicPartition: TopicPartition) = {
+  private def createMockConsumer(offset: Long, topicPartition: TopicPartition): MockConsumer[String, String] = {
     val mockConsumer =
       new MockConsumer[String, String](OffsetResetStrategy.EARLIEST)
     val partitionMap =
       Map(topicPartition -> offset.asInstanceOf[java.lang.Long]).asJava
 
-    mockConsumer.subscribe(Seq(topic.name).asJava)
+    mockConsumer.subscribe(Seq(topicPartition.topic).asJava)
     mockConsumer.rebalance(ArrayBuffer(topicPartition).asJava)
     mockConsumer.updateBeginningOffsets(partitionMap)
     mockConsumer.updateEndOffsets(partitionMap)
