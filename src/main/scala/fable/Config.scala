@@ -10,8 +10,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SslConfigs
 import pureconfig.ConfigReader
 import pureconfig.generic.semiauto.deriveReader
+import pureconfig.module.squants._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
+import squants.information.Information
 
 /**
   * Configuration objects for Fable. These objects can be constructed manually,
@@ -29,9 +31,11 @@ import scala.util.Try
   *
   *     test-consumer {
   *       auto-commit = false
+  *       auto-offset-reset = "latest"
   *       batch-size = 1024
   *       client-id = "fable-test"
   *       group-id = "fable-test"
+  *       fetch-max-size = 1k
   *       max-poll-records = 1024
   *       polling-timeout = 1 second
   *       session-timeout = 30 seconds
@@ -57,9 +61,12 @@ object Config {
     *
     * @constructor
     * @param autoCommit whether to automatically commit the previous offset
+    * @param autoOffsetReset what to do when there is no initial offset in
+    * Kafka or if the current offset does not exist any more on the server
     * @param clientCertificate SSL certificate used to authenticate the client
     * @param clientId identifier for tracking which client is making requests
     * @param clientKey SSL private key used to authenticate the client
+    * @param fetchMaxSize the maximum data size to fetch in a single poll
     * @param groupId identifier for the consumer group this consumer will join
     * each time [[Consumer.poll]] is invoked.
     * @param maxPollRecords the maximum number of records to return each time
@@ -77,9 +84,11 @@ object Config {
     */
   case class Consumer(
       autoCommit: Boolean,
+      autoOffsetReset: Config.Consumer.AutoOffsetReset,
       clientCertificate: Option[String],
       clientId: String,
       clientKey: Option[String],
+      fetchMaxSize: Option[Information],
       groupId: Option[GroupId],
       maxPollRecords: Int,
       pollingTimeout: FiniteDuration,
@@ -115,6 +124,10 @@ object Config {
       target.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
       target.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
                  new Integer(maxPollRecords))
+
+      fetchMaxSize
+        .map(_.toBytes.toInt.toString)
+        .foreach(target.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, _))
 
       requestTimeout
         .map(_.toMillis.toString)
@@ -178,6 +191,33 @@ object Config {
   }
 
   object Consumer {
+    sealed trait AutoOffsetReset {
+      def renderString: String
+    }
+
+    object AutoOffsetReset {
+      case object Earliest extends AutoOffsetReset {
+        val renderString = "earliest"
+      }
+
+      case object Latest extends AutoOffsetReset {
+        val renderString = "latest"
+      }
+
+      case object None extends AutoOffsetReset {
+        val renderString = "none"
+      }
+
+      implicit val autoOffsetResetReader: ConfigReader[AutoOffsetReset] =
+        pureconfig.ConfigReader[String].emap { string =>
+          List(Earliest, Latest, None)
+            .filter(_.renderString == string)
+            .headOption
+            .toRight(pureconfig.error
+              .CannotConvert(string, "auto offset", "Unkown value"))
+        }
+    }
+
     implicit val consumerConfigReader: ConfigReader[Consumer] = deriveReader
   }
 

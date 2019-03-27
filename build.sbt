@@ -8,6 +8,7 @@ val kafkaVersion = "2.1.+"
 val log4CatsVersion = "0.2.+"
 val pureConfigVersion = "0.10.+"
 val scalaTestVersion = "3.0.+"
+val squantsVersion = "1.3.+"
 
 def findJar(classPath: Seq[Attributed[File]], name: String): File =
   classPath.find(_.data.toString.containsSlice(name)).get.data
@@ -75,12 +76,14 @@ lazy val fable = (project in file("."))
     libraryDependencies ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-squants" % pureConfigVersion,
       "com.heroku.sdk" % "env-keystore" % envKeyStoreVersion,
       "io.chrisdavenport" %% "log4cats-slf4j" % log4CatsVersion,
       "org.apache.kafka" % "kafka-clients" % kafkaVersion,
       "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
       "org.typelevel" %% "cats-core" % catsVersion,
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
+      "org.typelevel" %% "squants" % squantsVersion,
       "ch.qos.logback" % "logback-classic" % "1.2.3" % Test
     )
   )
