@@ -29,8 +29,7 @@ class ConsumerSpec extends AsyncFunSuite {
     val record = createRecordMock(mockConsumer,
                                   topic,
                                   topicPartition,
-                                  offset,
-                                  ("one" -> "1"))
+                                  (offset, "one", "1"))
     val consumer = new Consumer[IO, String, String](config, mockConsumer)
 
     (for {
@@ -210,6 +209,30 @@ class ConsumerSpec extends AsyncFunSuite {
     }).unsafeToFuture
   }
 
+  test("seek") {
+    val topic = Topic("fable-test-example")
+    val firstOffset = 1.toLong
+    val secondOffset = 2.toLong
+    val partition = 1
+    val topicPartition: TopicPartition =
+      new TopicPartition(topic.name, partition)
+    val mockConsumer = createMockConsumer(firstOffset, topicPartition)
+    createRecordMock(mockConsumer,
+                     topic,
+                     topicPartition,
+                     (firstOffset, "1", "First"),
+                     (secondOffset, "2", "Second"))
+    val consumer = new Consumer[IO, String, String](config, mockConsumer)
+
+    (for {
+      _ <- consumer.subscribe(topic)
+      _ <- consumer.seek(Partition(topic, partition), secondOffset)
+      records <- consumer.poll
+    } yield {
+      assert(records.toSeq.map(_.value) === List("Second"))
+    }).unsafeToFuture
+  }
+
   private def createTopic(topic: String): IO[Unit] =
     IO.delay {
       val properties = new Properties
@@ -257,7 +280,9 @@ class ConsumerSpec extends AsyncFunSuite {
       producer.close
     }
 
-  private def createMockConsumer(offset: Long, topicPartition: TopicPartition): MockConsumer[String, String] = {
+  private def createMockConsumer(
+      offset: Long,
+      topicPartition: TopicPartition): MockConsumer[String, String] = {
     val mockConsumer =
       new MockConsumer[String, String](OffsetResetStrategy.EARLIEST)
     val partitionMap =
@@ -274,18 +299,15 @@ class ConsumerSpec extends AsyncFunSuite {
   private def createRecordMock(mockConsumer: MockConsumer[String, String],
                                topic: Topic,
                                topicPartition: TopicPartition,
-                               offset: Long,
-                               records: (String, String)*) = {
-    for {
-      record <- records
-    } yield {
+                               records: (Long, String, String)*): Unit = {
+    for (record <- records) {
       mockConsumer.addRecord(
         new ConsumerRecord(
           topic.name,
           topicPartition.partition,
-          offset,
           record._1,
-          record._2
+          record._2,
+          record._3
         )
       )
     }

@@ -196,6 +196,16 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     }
 
   /**
+    * Overrides the fetch offsets that the consumer will use on the next poll.
+    *
+    * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#seek-org.apache.kafka.common.TopicPartition-long-]]
+    */
+  def seek(partition: Partition, offset: Long): F[Unit] =
+    eval(
+      _.seek(new TopicPartition(partition.topic.name, partition.number),
+             offset))
+
+  /**
     * Perform an operation using the underlying KafkaConsumer and return the
     * result suspended in F.
     *
