@@ -5,11 +5,7 @@ import cats.effect.IO
 import java.util.Properties
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.{AdminClient, NewTopic}
-import org.apache.kafka.clients.producer.{
-  KafkaProducer,
-  ProducerConfig,
-  ProducerRecord
-}
+import org.apache.kafka.clients.producer
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringSerializer
 import org.scalatest.AsyncFunSuite
@@ -256,28 +252,30 @@ class ConsumerSpec extends AsyncFunSuite {
                      config.uris.bootstrapServers)
       properties.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
                      config.uris.scheme)
-      properties.put(ProducerConfig.ACKS_CONFIG, "all")
-      properties.put(ProducerConfig.CLIENT_ID_CONFIG, "fable-test")
-      properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG,
+      properties.put(producer.ProducerConfig.ACKS_CONFIG, "all")
+      properties.put(producer.ProducerConfig.CLIENT_ID_CONFIG, "fable-test")
+      properties.put(producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG,
                      new Integer(5000))
-      properties.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG,
+      properties.put(producer.ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG,
                      new Integer(4000))
-      properties.put(ProducerConfig.BATCH_SIZE_CONFIG,
+      properties.put(producer.ProducerConfig.BATCH_SIZE_CONFIG,
                      new Integer(records.length))
-      properties.put(ProducerConfig.LINGER_MS_CONFIG, new Integer(0))
-      properties.put(ProducerConfig.BUFFER_MEMORY_CONFIG, new Integer(1024))
-      properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+      properties.put(producer.ProducerConfig.LINGER_MS_CONFIG, new Integer(0))
+      properties.put(producer.ProducerConfig.BUFFER_MEMORY_CONFIG,
+                     new Integer(1024))
+      properties.put(producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                      classOf[StringSerializer].getName)
-      properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+      properties.put(producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                      classOf[StringSerializer].getName)
 
-      val producer = new KafkaProducer[String, String](properties)
+      val instance = new producer.KafkaProducer[String, String](properties)
 
       for ((key, value) <- records) {
-        producer.send(new ProducerRecord[String, String](topic, key, value))
+        instance.send(
+          new producer.ProducerRecord[String, String](topic, key, value))
       }
 
-      producer.close
+      instance.close
     }
 
   private def createMockConsumer(

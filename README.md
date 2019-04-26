@@ -55,8 +55,8 @@ my-consumer.group-id = "my-group"
 You can load your configuration using [pureconfig]:
 
 ``` scala
-val config: fable.Config.Consumer =
-  pureconfig.loadConfigOrThrow[Config.Consumer]("my-consumer")
+val config: fable.config.Consumer =
+  pureconfig.loadConfigOrThrow[Consumer]("my-consumer")
 ```
 
 You can then create a consumer group and start consuming:

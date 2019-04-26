@@ -27,11 +27,11 @@ import scala.collection.JavaConverters._
   *
   * object Main extends IOApp {
   *   def run(args: List[String]): IO[ExitCode] = {
-  *     val config: Config.Consumer =
-  *       pureconfig.loadConfigOrThrow[Config.Consumer]("kafka.my-consumer")
-  *     Consumer.resource[IO, String, String](consumerConfig).use { consumer =>
+  *     val config: fable.config.Consumer =
+  *       pureconfig.loadConfigOrThrow[fable.config.Consumer]("kafka.my-consumer")
+  *     Consumer.resource[IO, String, String](config).use { consumer =>
   *       for {
-  *         _ <- consumer.subscribe(kafka.topic("my-topic"))
+  *         _ <- consumer.subscribe(fable.Topic("my-topic"))
   *         records <- consumer.poll
   *         _ <- IO.delay(println(s"Consumed \${records.count} records"))
   *       } yield ExitCode.Success
@@ -40,13 +40,14 @@ import scala.collection.JavaConverters._
   * }
   * }}}
   *
-  * @see [[Config.Consumer]] for configuration options for consumers
+  * @see [[fable.config.Consumer config.Consumer]] for configuration options for
+  * consumers
   * @see [[Deserializer]] for details on deserializing keys and values
   * @see [[org.apache.kafka.clients.consumer.KafkaConsumer KafkaConsumer]] for
   * details about Kafka's consumers
   */
 class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
-    config: Config.Consumer,
+    config: fable.config.Consumer,
     kafkaConsumer: kafka.clients.consumer.Consumer[K, V]) {
 
   /**
@@ -59,7 +60,7 @@ class Consumer[F[_]: ContextShift: Monad: Sync, K, V] private[fable] (
     * Fetch the next batch of records from Kafka.
     *
     * Polling behavior, including timeouts, batch sizes, and auto commit can be
-    * configured via [[Config.Consumer]].
+    * configured via [[fable.config.Consumer]].
     *
     * @see [[https://kafka.apache.org/21/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#poll-java.time.Duration- KafkaConsumer.poll]]
     */
@@ -249,7 +250,7 @@ object Consumer {
   def resource[F[_]: ContextShift: Monad: Sync,
                K: Deserializer,
                V: Deserializer](
-      config: Config.Consumer): Resource[F, Consumer[F, K, V]] =
+      config: fable.config.Consumer): Resource[F, Consumer[F, K, V]] =
     Resource.make(
       config
         .properties[F, K, V]
