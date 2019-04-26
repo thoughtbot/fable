@@ -16,5 +16,5 @@ case class ConsumerRecords[K, V](
     records.count
 
   def toSeq: Seq[ConsumerRecord[K, V]] =
-    records.iterator.asScala.toSeq
+    records.iterator.asScala.map(ConsumerRecord(_)).toSeq
 }

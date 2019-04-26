@@ -302,7 +302,7 @@ class ConsumerSpec extends AsyncFunSuite {
                                records: (Long, String, String)*): Unit = {
     for (record <- records) {
       mockConsumer.addRecord(
-        new ConsumerRecord(
+        new org.apache.kafka.clients.consumer.ConsumerRecord(
           topic.name,
           topicPartition.partition,
           record._1,
